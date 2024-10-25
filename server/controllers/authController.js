@@ -57,3 +57,31 @@ exports.logoutUser = (req, res) => {
   res.clearCookie('token');
   res.status(200).json({ message: 'User logged out successfully' });
 };
+
+exports.verifyToken = async (req, res) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  } 
+  else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
+    return res.status(401).json({ valid: false, message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ valid: false, message: 'User not found' });
+    }
+
+    res.json({ valid: true, user: { id: user._id, email: user.email } });
+  } catch (error) {
+    res.status(401).json({ valid: false, message: 'Token is invalid or expired' });
+  }
+}
